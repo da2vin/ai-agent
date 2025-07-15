@@ -7,6 +7,7 @@ from utils.logger import get_logger
 from langchain_core.tools import tool
 from langchain_openai import ChatOpenAI
 from langgraph.prebuilt import create_react_agent
+from langgraph.checkpoint.memory import InMemorySaver
 from langchain_core.messages import SystemMessage, HumanMessage
 
 load_dotenv(verbose=True)
@@ -25,24 +26,46 @@ def get_current_date():
 
 llm = ChatOpenAI(model="gpt-4o-mini")
 
+checkpointer = InMemorySaver()
+
+config = {
+    "configurable": {
+        "thread_id": "123"
+    }
+}
+
 agent = create_react_agent(
     model=llm,
     tools=[get_current_date],
-    prompt="You are a helpful assistant.",
+    checkpointer=checkpointer,
+    prompt="You are a helpful assistant."
 )
 
 
-async def invoke():
-    messages = [
-        SystemMessage("你是一个私人助手"),
-        HumanMessage("今天是几月几号？"),
-    ]
+# async def invoke():
+#     messages = [
+#         SystemMessage("你是一个私人助手"),
+#         HumanMessage("今天是几月几号？"),
+#     ]
+#
+#     result = await agent.ainvoke({
+#         "messages": messages
+#     })
+#     logger.info(result["messages"][-1].content)
 
-    result = await agent.ainvoke({
-        "messages": messages
-    })
-    logger.info(result["messages"][-1].content)
+def main():
+    while True:
+        prompt = input("User:")
+        messages = [
+            HumanMessage(prompt),
+        ]
+        result = agent.invoke(
+            {
+                "messages": messages
+            },
+            config)
+        print(f"assistant: {result['messages'][-1].content}\n")
 
 
 if __name__ == '__main__':
-    asyncio.run(invoke())
+    main()
