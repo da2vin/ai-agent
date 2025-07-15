@@ -3,7 +3,7 @@
 import asyncio
 import datetime
 from dotenv import load_dotenv
-from utilis.logger import get_logger
+from utils.logger import get_logger
 from langchain_core.tools import tool
 from langchain_openai import ChatOpenAI
 from langgraph.prebuilt import create_react_agent
