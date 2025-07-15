@@ -6,6 +6,7 @@ from typing import Annotated
 
 from dotenv import load_dotenv
 from langgraph.prebuilt.chat_agent_executor import AgentState
+from langgraph.types import interrupt, Command
 
 from utils.logger import get_logger
 from langchain_core.tools import tool
@@ -42,6 +43,11 @@ def get_current_date():
     获取今天的日期
     :return:
     """
+    response = interrupt(
+        "正在准备查询日期，请选择是否查询，Y/N"
+    )
+    if response["type"] != "Y":
+        return "error"
     return datetime.datetime.now().strftime("%Y-%m-%d")
 
 
@@ -88,8 +94,12 @@ def main():
                 "user_id": "user_123",
             },
             config)
+        if "__interrupt__" in result:
+            flag = input(f"assistant: {result['__interrupt__'][0].value}\n")
+            result = agent.invoke(
+                Command(resume={"type": flag}),
+                config)
         print(f"assistant: {result['messages'][-1].content}\n")
-
 
 if __name__ == '__main__':
     main()
