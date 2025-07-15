@@ -3,12 +3,15 @@
 import asyncio
 import datetime
 from dotenv import load_dotenv
+from utilis.logger import get_logger
 from langchain_core.tools import tool
 from langchain_openai import ChatOpenAI
 from langgraph.prebuilt import create_react_agent
 from langchain_core.messages import SystemMessage, HumanMessage
 
 load_dotenv(verbose=True)
+
+logger = get_logger("hami")
 
 
 @tool
@@ -38,7 +41,7 @@ async def invoke():
     result = await agent.ainvoke({
         "messages": messages
     })
-    print(result)
+    logger.info(result["messages"][-1].content)
 
 
 if __name__ == '__main__':
