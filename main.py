@@ -5,6 +5,7 @@ import datetime
 from typing import Annotated
 
 from dotenv import load_dotenv
+from langchain_mcp_adapters.client import MultiServerMCPClient
 from langgraph.prebuilt.chat_agent_executor import AgentState
 from langgraph.types import interrupt, Command
 
@@ -43,11 +44,11 @@ def get_current_date():
     获取今天的日期
     :return:
     """
-    response = interrupt(
-        "正在准备查询日期，请选择是否查询，Y/N"
-    )
-    if response["type"] != "Y":
-        return "error"
+    # response = interrupt(
+    #     "正在准备查询日期，请选择是否查询，Y/N"
+    # )
+    # if response["type"] != "Y":
+    #     return "error"
     return datetime.datetime.now().strftime("%Y-%m-%d")
 
 
@@ -61,13 +62,16 @@ config = {
     }
 }
 
-agent = create_react_agent(
-    model=llm,
-    tools=[get_current_date, get_user_info],
-    state_schema=CustomState,
-    checkpointer=checkpointer,
-    prompt="You are a helpful assistant."
+mcp_client = MultiServerMCPClient(
+    {
+        "add-server": {
+            "url": "http://127.0.0.1:8111/sse",
+            "transport": "sse"
+        }
+    }
 )
+
+
 
 
 # async def invoke():
@@ -82,24 +86,35 @@ agent = create_react_agent(
 #     logger.info(result["messages"][-1].content)
 
 
-def main():
+async def main():
+    tools = await mcp_client.get_tools()
+
+    agent = create_react_agent(
+        model=llm,
+        tools=[get_current_date, get_user_info] + tools,
+        state_schema=CustomState,
+        checkpointer=checkpointer,
+        prompt="You are a helpful assistant."
+    )
+
     while True:
         prompt = input("User:")
         messages = [
             HumanMessage(prompt),
         ]
-        result = agent.invoke(
+        result = await  agent.ainvoke(
             {
                 "messages": messages,
                 "user_id": "user_123",
             },
             config)
-        if "__interrupt__" in result:
-            flag = input(f"assistant: {result['__interrupt__'][0].value}\n")
-            result = agent.invoke(
-                Command(resume={"type": flag}),
-                config)
+        # if "__interrupt__" in result:
+        #     flag = input(f"assistant: {result['__interrupt__'][0].value}\n")
+        #     result = agent.invoke(
+        #         Command(resume={"type": flag}),
+        #         config)
         print(f"assistant: {result['messages'][-1].content}\n")
 
+
 if __name__ == '__main__':
-    main()
+    asyncio.run(main())
