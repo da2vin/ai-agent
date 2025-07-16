@@ -3,6 +3,7 @@
 from typing import Annotated
 
 from dotenv import load_dotenv
+from langgraph.checkpoint.memory import MemorySaver
 
 from utils.logger import get_logger
 from typing_extensions import TypedDict
@@ -26,6 +27,8 @@ graph_builder = StateGraph(State)
 
 llm = init_chat_model(model="openai:gpt-4o-mini")
 
+memory = MemorySaver()
+
 
 def chatbot(state: State):
     return {"messages": [llm.invoke(state["messages"])]}
@@ -40,7 +43,7 @@ graph_builder.add_edge(START, "chatbot")
 
 graph_builder.add_edge("chatbot", END)
 
-graph = graph_builder.compile()
+graph = graph_builder.compile(checkpointer=memory)
 
 
 # 保存状态图的可视化表示
@@ -66,3 +69,27 @@ def save_graph_visualization(graph: StateGraph, filename: str = "graph.png") -> 
 
 
 save_graph_visualization(graph)
+
+config = {"configurable": {"thread_id": "1"}}
+
+
+def stream_graph_updates(user_input: str):
+    for event in graph.stream({"messages": [{"role": "user", "content": user_input}]},
+                              config):
+        for value in event.values():
+            print("Assistant:", value["messages"][-1].content)
+
+
+while True:
+    try:
+        user_input = input("User: ")
+        if user_input.lower() in ["quit", "exit", "q"]:
+            print("Goodbye!")
+            break
+        stream_graph_updates(user_input)
+    except:
+        # fallback if input() is not available
+        user_input = "What do you know about LangGraph?"
+        print("User: " + user_input)
+        stream_graph_updates(user_input)
+        break
